@@ -1,9 +1,9 @@
 '''This script demonstrate how to use some automation scripts to automatically collect an energy scan of the laser '''
 import seeOutside
-import lc4 as lc
+from lc4 import *
 import PS300 as ps
 import pg575v2 as pg
-#import opotek2 as opo
+import opotek2 as opo
 
 import pickle
 
@@ -59,7 +59,7 @@ if False:
 
 SYSTEM = 0                  # single-system setup
 WAVELENGTH_NM = 580.0       # desired output
-QS_DELAY_US = 90            # mid-range value (35–160 µs allowed) / this should
+QS_DELAY_US = 50            # mid-range value (35–160 µs allowed) / this should
                             # be determined automatically from the config file
 
 
