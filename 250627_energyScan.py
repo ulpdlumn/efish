@@ -98,7 +98,8 @@ print(f"Enabling qswitch...")
 opo.laser_qswitch(1, SYSTEM)
 
 # ─── Run beam for 10 s ───────────────────────────────────────────────────────
-for wavelength in range(560, 585, 5):
+collection = []
+for ii, wavelength in enumerate( range(560, 585, 5) ):
         print(f"Running the system for 10 seconds at {wavelength}...")
         # check if the configuration can be kept the same
         assert low <= wavelength <= high
@@ -108,7 +109,8 @@ for wavelength in range(560, 585, 5):
         time.sleep(5)   # wait 5 seconds before actually starting to collet data
 
         # here collect data from the oscilloscope
-
+        t, y = oscilloscope_single(ch = 1, duration = 20, SPS = 100, init = ii==0)
+        collection.append([QS_DELAY_US, wavelength,  y.mean(), (y.max() - y.min()) ])
 
         keep_running = False            # stop keep-alive thread    # maybe if can go one indentation less
 
