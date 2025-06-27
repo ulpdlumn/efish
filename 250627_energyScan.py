@@ -5,10 +5,13 @@ import PS300 as ps
 import pg575v2 as pg
 #import opotek2 as opo
 
+import pickle
+
 import time
 import threading
 from pathlib import Path
 import os, configparser
+import matplotlib.pyplot as plt
 
 
 # Q-Smart keep-alive -------------------------------------------------
@@ -114,6 +117,7 @@ for ii, wavelength in enumerate( range(560, 585, 5) ):
 
         keep_running = False            # stop keep-alive thread    # maybe if can go one indentation less
 
+collection = np.array(collection)
 
 # ─── 8. Disable the Q-switch ────────────────────────────────────────────────
 print(f"Disabling qswitch...")
@@ -131,3 +135,12 @@ opo.motor_park(SYSTEM)
 print(f"Closing the system...")
 opo.system_close(SYSTEM)
 
+## saving the results
+with open(f'{saveloc}energy_scan.pkl', 'wb') as fi:
+    pickle.dump(collection, f)
+
+## plot the reuslts
+if True:
+    fig, ax= plt.subplots()
+    ax.plot(collection[:,1], collection[:,2], 'sr', label=f'Energy');
+    plt.legend(); plt.draw();plt.pause(.001)
