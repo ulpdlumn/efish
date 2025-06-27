@@ -41,8 +41,8 @@ def oscilloscope_single(ch : int = 1, duration : float = 20, SPS : int = 100, in
             scope.set_vdiv(ch, 1)
             scope.set_tdiv(duration/10)
             scope.set_mdepth(max_points)
-        scope.single(timeout=5)
-        scope.force()   # this should trigger the trigger, no matter what
+        scope.single(timeout=5, forceTr=True)
+#        scope.force()   # this should trigger the trigger, no matter what
         t, y = scope.get_waveform(ch, max_points=max_points, with_time=True)
         print(f"Single test: captured {len(y)} samples")
     finally:
@@ -114,6 +114,8 @@ for ii, wavelength in enumerate( range(560, 585, 5) ):
         # here collect data from the oscilloscope
         t, y = oscilloscope_single(ch = 1, duration = 20, SPS = 100, init = ii==0)
         collection.append([QS_DELAY_US, wavelength,  y.mean(), (y.max() - y.min()) ])
+
+        print(f"Average energy at {wavelength} n: {y.mean()}")
 
         keep_running = False            # stop keep-alive thread    # maybe if can go one indentation less
 
