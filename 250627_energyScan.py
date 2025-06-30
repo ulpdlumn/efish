@@ -18,11 +18,19 @@ import matplotlib.pyplot as plt
 allowedMDepth = [25e6, 12.5e6, 5e6, 1.25e6, 5e5, 125e3, 5e4, 125e2, 5e3, 1250]
 allowedtdiv   = [100, 200, 500]  
 
+
+notes = "_em570_sensormoved"    # additional notes
+EMCorrFac = 1/5 # energy meter correction factor [V/W]
+LaserFreq = 10  # [Hz]
 waitingtime = 3 # time after tuning before starting the acquisition
 aqtime = 5  # acquisition time for each condition 
 wstep = 5   # wavelength scan step 
-wavelengths = np.arange(560, 592.5, wstep)
-wavelengths = np.array( [*np.arange(560, 592.5, wstep),*np.arange(560, 592.5, wstep)] )
+reps = 3
+wavelengthsBase = np.arange(560, 592.5, wstep)
+wavelengths = []
+for r in range(reps):
+    wavelengths = np.array([*wavelengths, *wavelengthsBase])
+
 saveloc = "__media__/"  # location where to save files 
 QS_DELAY_US = 50    # (35–160 µs allowed)
 
@@ -144,7 +152,7 @@ keep_running = False            # stop keep-alive thread    # maybe if can go on
 
 collection = np.array(collection)
 ## saving the results
-with open(f'{saveloc}energy_scan_QS{QS_DELAY_US}.pkl', 'wb') as fi:
+with open(f'{saveloc}energy_scan_QS{QS_DELAY_US}{notes}.pkl', 'wb') as fi:
     pickle.dump(collection, fi)
 
 
@@ -169,11 +177,13 @@ opo.system_close(SYSTEM)
 ## plot the reuslts
 if True:
     fig, ax= plt.subplots()
-    ax.plot(collection[:,1], collection[:,2], 'sr', label=f'Energy');
+    ax.plot(collection[:,1], collection[:,2] / EMCorrFac / LaserFreq, 'sr', label=f'Energy');
     ax.set_xlabel("Wavelength [nm]")
-    ax.set_ylabel("Energy [arb]")
-    ax.set_title(f"Pulse enrgy vs wavelength\nat QS delay: {QS_DELAY_US} us")
+    ax.set_ylabel("Average pulse energy [J]")
+    ax.set_title(f"Average pulse energy vs wavelength\nat QS delay: {QS_DELAY_US} us")
     plt.legend(frameon=False); 
     ax.grid()
     plt.draw();plt.pause(.001)
-    plt.savegig( f'{saveloc}energy_scan_QS{QS_DELAY_US}.png')
+    plt.savefig( f'{saveloc}energy_scan_QS{QS_DELAY_US}{notes}.png')
+    
+    
