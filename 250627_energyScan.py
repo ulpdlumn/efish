@@ -6,12 +6,25 @@ import pg575v2 as pg
 import opotek2 as opo
 
 import pickle
+import numpy as np
+
 
 import time
 import threading
 from pathlib import Path
 import os, configparser
 import matplotlib.pyplot as plt
+
+allowedMDepth = [25e6, 12.5e6, 5e6, 1.25e6, 5e5, 125e3, 5e4, 125e2, 5e3, 1250]
+allowedtdiv   = [100, 200, 500]  
+
+waitingtime = 3 # time after tuning before starting the acquisition
+aqtime = 5  # acquisition time for each condition 
+wstep = 5   # wavelength scan step 
+wavelengths = np.arange(560, 592.5, wstep)
+wavelengths = np.array( [*np.arange(560, 592.5, wstep),*np.arange(560, 592.5, wstep)] )
+saveloc = "__media__/"  # location where to save files 
+QS_DELAY_US = 50    # (35–160 µs allowed)
 
 
 # Q-Smart keep-alive -------------------------------------------------
@@ -22,9 +35,10 @@ def _keep_alive():
 
 
 # ----
-def oscilloscope_single(ch : int = 1, duration : float = 1, SPS : int = 100, init : bool = False):
+def oscilloscope_single(ch : int = 1, tdiv : float = 1, max_points : int = allowedMDepth[-1], init : bool = False):
     """Test single-shot acquisition (sequence off)."""
-    max_points = SPS * duration
+    duration = tdiv * 10
+    SPS = max_points / duration
     t, y, =[],[]
     scope = MauiScope("192.168.8.223", debug=True)
     try:
@@ -39,12 +53,12 @@ def oscilloscope_single(ch : int = 1, duration : float = 1, SPS : int = 100, ini
             scope.enable_trace(ch, True)
             
             scope.sequence(enable=False)
-            scope.set_vdiv(ch, 1)
-            scope.set_tdiv(duration/10)
+            scope.set_vdiv(ch, .01) # sets vdiv to 10 mv
+            scope.set_tdiv(tdiv)
             scope.set_mdepth(max_points)
             scope._log('INIT COMPLETED...')
         
-        scope.single(timeout=11, forceTr=True)
+        scope.single(timeout=5, forceTr=True)
         t, y = scope.get_waveform(ch, max_points=max_points, with_time=True)
         print(f"Single test: captured {len(y)} samples")
     finally:
@@ -61,12 +75,16 @@ if False:
 
 SYSTEM = 0                  # single-system setup
 WAVELENGTH_NM = 580.0       # desired output
-QS_DELAY_US = 50            # mid-range value (35–160 µs allowed) / this should
-                            # be determined automatically from the config file
 
-if True:
-        t, y = oscilloscope_single(ch =4, duration = 20, SPS = 100, init = 0==0)
-input()
+if False:
+        t, y = oscilloscope_single(ch =4, tdiv = 1, init = 0==0)
+        import matplotlib.pyplot as plt
+        fig, ax= plt.subplots()
+        ax.plot(t,y)
+        plt.draw();plt.pause(.001)
+
+
+        input(aaaa)
 # ─── 1. Initialise ───────────────────────────────────────────────────────────
 print("System init...")
 opo.system_init(system_index=SYSTEM)
@@ -106,27 +124,33 @@ opo.laser_qswitch(1, SYSTEM)
 
 # ─── Run beam for 10 s ───────────────────────────────────────────────────────
 collection = []
-for ii, wavelength in enumerate( range(560, 585, 5) ):
+for ii, wavelength in enumerate( wavelengths ):
         print(f"Running the system for 10 seconds at {wavelength}...")
         # check if the configuration can be kept the same
         assert low <= wavelength <= high
         opo.system_tune(wavelength, SYSTEM)
         keep_running = True
         threading.Thread(target=_keep_alive, daemon=True).start()
-        time.sleep(5)   # wait 5 seconds before actually starting to collet data
+        time.sleep(waitingtime)   # wait some seconds before actually starting to collet data
 
+#.        if ii==0: input("check scope")
         # here collect data from the oscilloscope
-        t, y = oscilloscope_single(ch =4, duration = 20, SPS = 100, init = ii==0)
+        t, y = oscilloscope_single(ch =4, tdiv = aqtime/10, init = ii==0)
         collection.append([QS_DELAY_US, wavelength,  y.mean(), (y.max() - y.min()) ])
 
         print(f"Average energy at {wavelength} n: {y.mean()}")
 
-        keep_running = False            # stop keep-alive thread    # maybe if can go one indentation less
+keep_running = False            # stop keep-alive thread    # maybe if can go one indentation less
 
 collection = np.array(collection)
+## saving the results
+with open(f'{saveloc}energy_scan_QS{QS_DELAY_US}.pkl', 'wb') as fi:
+    pickle.dump(collection, fi)
+
 
 # ─── 8. Disable the Q-switch ────────────────────────────────────────────────
 print(f"Disabling qswitch...")
+keep_running = False            # stop keep-alive thread    # maybe if can go one indentation less
 opo.laser_qswitch(0, SYSTEM)
 
 # ─── 9. Turn the flash-lamp OFF ──────────────────────────────────────────────
@@ -141,12 +165,15 @@ opo.motor_park(SYSTEM)
 print(f"Closing the system...")
 opo.system_close(SYSTEM)
 
-## saving the results
-with open(f'{saveloc}energy_scan.pkl', 'wb') as fi:
-    pickle.dump(collection, f)
 
 ## plot the reuslts
 if True:
     fig, ax= plt.subplots()
     ax.plot(collection[:,1], collection[:,2], 'sr', label=f'Energy');
-    plt.legend(); plt.draw();plt.pause(.001)
+    ax.set_xlabel("Wavelength [nm]")
+    ax.set_ylabel("Energy [arb]")
+    ax.set_title(f"Pulse enrgy vs wavelength\nat QS delay: {QS_DELAY_US} us")
+    plt.legend(frameon=False); 
+    ax.grid()
+    plt.draw();plt.pause(.001)
+    plt.savegig( f'{saveloc}energy_scan_QS{QS_DELAY_US}.png')
