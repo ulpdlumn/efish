@@ -22,7 +22,7 @@ def _keep_alive():
 
 
 # ----
-def oscilloscope_single(ch : int = 1, duration : float = 20, SPS : int = 100, init : bool = False):
+def oscilloscope_single(ch : int = 1, duration : float = 1, SPS : int = 100, init : bool = False):
     """Test single-shot acquisition (sequence off)."""
     max_points = SPS * duration
     t, y, =[],[]
@@ -31,18 +31,20 @@ def oscilloscope_single(ch : int = 1, duration : float = 20, SPS : int = 100, in
         scope._log('[FUNC] Single acquisition ')
         scope.buzz()
         if init:
-            for ii in range(4):
+            for ii in range(1, 5):
                 if ii!=ch:
                     scope.enable_channel(ii, False)
                     scope.enable_trace(ii, False)
             scope.enable_channel(ch, True)
             scope.enable_trace(ch, True)
+            
             scope.sequence(enable=False)
             scope.set_vdiv(ch, 1)
             scope.set_tdiv(duration/10)
             scope.set_mdepth(max_points)
-        scope.single(timeout=5, forceTr=True)
-#        scope.force()   # this should trigger the trigger, no matter what
+            scope._log('INIT COMPLETED...')
+        
+        scope.single(timeout=11, forceTr=True)
         t, y = scope.get_waveform(ch, max_points=max_points, with_time=True)
         print(f"Single test: captured {len(y)} samples")
     finally:
@@ -62,7 +64,9 @@ WAVELENGTH_NM = 580.0       # desired output
 QS_DELAY_US = 50            # mid-range value (35–160 µs allowed) / this should
                             # be determined automatically from the config file
 
-
+if True:
+        t, y = oscilloscope_single(ch =4, duration = 20, SPS = 100, init = 0==0)
+input()
 # ─── 1. Initialise ───────────────────────────────────────────────────────────
 print("System init...")
 opo.system_init(system_index=SYSTEM)
@@ -112,7 +116,7 @@ for ii, wavelength in enumerate( range(560, 585, 5) ):
         time.sleep(5)   # wait 5 seconds before actually starting to collet data
 
         # here collect data from the oscilloscope
-        t, y = oscilloscope_single(ch = 1, duration = 20, SPS = 100, init = ii==0)
+        t, y = oscilloscope_single(ch =4, duration = 20, SPS = 100, init = ii==0)
         collection.append([QS_DELAY_US, wavelength,  y.mean(), (y.max() - y.min()) ])
 
         print(f"Average energy at {wavelength} n: {y.mean()}")
