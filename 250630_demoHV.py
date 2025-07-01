@@ -1,12 +1,14 @@
 import serial
 import time
+import seeOutside
+
 from PS300 import *
 
 # Connect to power supply
 ps = PS300(port='COM6')
 
 # Basic operation
-ps.set_voltage(-10)      # Set output to 5000V
+ps.set_voltage(-10)      #
 assert ps.get_last_error() == 0
 ps.set_current_limit(-3e-4)  # Set current limit to 0.3mA (max 525ua)
 ps.set_current_trip(-5e-4)  #TODO check that the current has to be negative here
