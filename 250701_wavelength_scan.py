@@ -97,18 +97,6 @@ def test_sequence(mdepth = 1_000, segments = 1000, tdiv=50e-9, init=False):
 SYSTEM = 0                  # single-system setup
 WAVELENGTH_NM = 580.0       # desired output
 
-if False:
-    t, y1,y2,y3 = test_sequence(segments=10, mdepth = 1250, tdiv=10e-9)
-    # fig, ax= plt.subplots(3, 1, sharex=True)
-    # for ii, y in enumerate([y1,y2,y3]):
-    # ax[ii].plot(y)
-    # ax[ii].set_title(len(y))
-    # plt.draw();plt.pause(.001)
-
-def reduce_median(y, segments):
-    y = y.reshape(segments, len(y)//segments)
-    return np.median(y, axis=1)
-
 if USELASER:
     # ─── 1. Initialise ───────────────────────────────────────────────────────────
     print("System init...")
@@ -162,7 +150,6 @@ try:
             y1,y2,y4 = test_sequence(segments=segments, mdepth = mdepth, tdiv=tdiv, init=ii==0)
             data = [time.time(), QS_DELAY_US, tdiv, segments, mdepth, wavelength,y1,y2,y4]
             collection.append(data)
-# finally:
             if not(saveCollection):
                 try:
                     ## saving the results

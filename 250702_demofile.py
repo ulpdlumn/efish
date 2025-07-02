@@ -29,6 +29,7 @@ if True:
     PD  = []
     PRE = []
     WL  = []
+
     for data in datacollection:
         [aqt, QS_DELAY_US, tdiv, segments, mdepth, wavelength,y1,y2,y4] = data
         M = np.array( [ get_matrix(y, tdiv, mdepth, segments) for y in [y1, y2, y4] ] )
