@@ -31,6 +31,8 @@ notes = "_first_test"    # additional notes
 LaserFreq = 10  # [Hz]
 waitingtime = 3 # time after tuning before starting the acquisition
 
+wavelengths = np.arange(561, 591, 5)
+
 wavelengths = np.array([
     *np.arange(560, 568, 1),
     *np.arange(568, 574, .1),
@@ -39,12 +41,11 @@ wavelengths = np.array([
     *np.arange(582, 586, 1),
     ])
 
-wavelengths = np.arange(561, 591, 5)
 
 tdiv = 10e-9
 mdepth = 1250
 segments = 100
-saveCollection = False
+saveCollection = True
 # saveloc = "__media__/"  # location where to save files
 saveloc = r"C:\\\\Users\\L136-ULPDL\\Desktop\\SharedDataAccess\\"  # location where to save files
 QS_DELAY_US = 35    # (35–160 µs allowed)
@@ -179,7 +180,7 @@ finally:
         filename = f'{saveloc}wavelength_scan_{notes}_{time.time()}.pkl'
         print(f'Saving data on file {filename}')
         with open(filename, 'wb') as fi:
-            pickle.dump(data, fi)
+            pickle.dump(collection, fi)
 
 
 if USELASER:
