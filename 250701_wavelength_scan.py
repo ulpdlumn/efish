@@ -27,7 +27,6 @@ allowedMDepth = [25e6, 12.5e6, 5e6, 1.25e6, 5e5, 125e3, 5e4, 125e2, 5e3, 1250]
 allowedtdiv   = [100, 200, 500]  
 
 
-notes = "_first_test"    # additional notes
 LaserFreq = 10  # [Hz]
 waitingtime = 3 # time after tuning before starting the acquisition
 
@@ -41,6 +40,13 @@ wavelengths = np.array([
     *np.arange(582, 586, 1),
     ])
 
+
+wavelengths = np.array([
+    *np.arange(570.7, 571.5, .1),
+#    *np.arange(579, 580.2, .1),
+    ])
+
+notes = "_shortrange_s1_g290_FGL"    # additional notes
 
 tdiv = 10e-9
 mdepth = 1250
