@@ -1,8 +1,8 @@
-'''This script demonstrate how to use some automation scripts to automatically collect an energy scan of the laser '''
+'''
+First EFISH laser wavelngth scan!
 
-USELASER = False
-
-
+'''
+USELASER = True#False
 import seeOutside
 from lc4 import *
 import PS300 as ps
@@ -27,19 +27,27 @@ allowedMDepth = [25e6, 12.5e6, 5e6, 1.25e6, 5e5, 125e3, 5e4, 125e2, 5e3, 1250]
 allowedtdiv   = [100, 200, 500]  
 
 
-notes = "_em570_sensormoved"    # additional notes
-EMCorrFac = 1/5 # energy meter correction factor [V/W]
+notes = "_first_test"    # additional notes
 LaserFreq = 10  # [Hz]
 waitingtime = 3 # time after tuning before starting the acquisition
-aqtime = 5  # acquisition time for each condition 
-wstep = 5   # wavelength scan step 
-reps = 10
-chs = [1,2,4]
 
-wavelengths = np.arange(565, 585, 5)
+wavelengths = np.array([
+    *np.arange(560, 568, 1),
+    *np.arange(568, 574, .1),
+    *np.arange(574, 577, 1),
+    *np.arange(577, 582, .1),
+    *np.arange(582, 586, 1),
+    ])
 
-saveloc = "__media__/"  # location where to save files 
-QS_DELAY_US = 50    # (35–160 µs allowed)
+wavelengths = np.arange(561, 591, 5)
+
+tdiv = 10e-9
+mdepth = 1250
+segments = 100
+saveCollection = False
+# saveloc = "__media__/"  # location where to save files
+saveloc = r"C:\\\\Users\\L136-ULPDL\\Desktop\\SharedDataAccess\\"  # location where to save files
+QS_DELAY_US = 35    # (35–160 µs allowed)
 
 
 # Q-Smart keep-alive -------------------------------------------------
@@ -51,55 +59,54 @@ if USELASER:
 
 
 # ----
-def oscilloscope(chs:list=chs, tdiv : float = 10e-9, mdepth : int = allowedMDepth[-2], init : bool = False, segments = 5):
-    """Test single-shot acquisition (sequence off)."""
+def test_sequence(mdepth = 1_000, segments = 1000, tdiv=50e-9, init=False):
+    """Test sequence acquisition of 3 segments."""
     scope = MauiScope("192.168.8.223", debug=True)
     try:
-        scope._log('[FUNC] Single acquisition ')
         scope.buzz()
         if init:
+            scope.enable_channel(1, True)
+            scope.enable_channel(2, True)
+            scope.enable_channel(3, False)
+            scope.enable_channel(4, True)
+            scope.enable_trace(1, True)
+            scope.enable_trace(2, True)
+            scope.enable_trace(3, False)
+            scope.enable_trace(4, True)
+
+            # scope.set_vdiv(1, 2)
+            scope.set_tdiv(tdiv)
+            scope.set_mdepth(mdepth)
             scope.sequence(enable=True, segments=segments)
 
-            for ii in range(1, 5):
-                scope.enable_channel(ii, False)
-                scope.enable_trace(ii, False)
-            for ch in chs:
-                scope.enable_channel(ch, True)
-                scope.enable_trace(ch, True)
+        scope.single(timeout=10)
 
-            # scope.set_tdiv(tdiv)
-            scope.set_mdepth(mdepth)
-            # scope.set_mdepth(1_000)
-            scope._log('INIT COMPLETED...')
-        
-        scope.single(timeout=15, forceTr=False)
-
-        collection = []
-        for ch in chs:
-            t, y = scope.get_waveform(ch, max_points=mdepth*segments, with_time=True)
-            print(f"Sequence: captured {len(y)} samples - shuold have been {mdepth*segments}")
-            collection.append(y)
+        t0  = time.time()
+        y1 = scope.get_waveform(1, max_points=mdepth*segments, with_time=False)
+        y2    = scope.get_waveform(2, max_points=mdepth*segments)
+        y3    = scope.get_waveform(4, max_points=mdepth*segments)
+        print(f'\t\tTIME REQUIRED: {time.time()-t0}')
     finally:
         scope.close()
-    return t, collection
+
+    return y1, y2, y3
 
 # ─── 0. Desired conditions ───────────────────────────────────────────────────
 
 SYSTEM = 0                  # single-system setup
 WAVELENGTH_NM = 580.0       # desired output
 
-if True:
-        # allowedMDepth[-3]
-        t, y = oscilloscope(init = 0==0, mdepth=250, tdiv=10e-9, segments=4, )
-        import matplotlib.pyplot as plt
-        fig, ax= plt.subplots(3, 1, sharex=True)
-        for ii, ch in enumerate(chs):
-            ax[ii].plot(t, y[ii])
-        plt.draw();plt.pause(.001)
+if False:
+    t, y1,y2,y3 = test_sequence(segments=10, mdepth = 1250, tdiv=10e-9)
+    # fig, ax= plt.subplots(3, 1, sharex=True)
+    # for ii, y in enumerate([y1,y2,y3]):
+    # ax[ii].plot(y)
+    # ax[ii].set_title(len(y))
+    # plt.draw();plt.pause(.001)
 
-
-        input(aaaa)
-
+def reduce_median(y, segments):
+    y = y.reshape(segments, len(y)//segments)
+    return np.median(y, axis=1)
 
 if USELASER:
     # ─── 1. Initialise ───────────────────────────────────────────────────────────
@@ -140,29 +147,39 @@ if USELASER:
     opo.laser_qswitch(1, SYSTEM)
 
 # ─── Run beam for 10 s ───────────────────────────────────────────────────────
-collection = []
-for ii, wavelength in enumerate( wavelengths ):
-        print(f"Running the system for 10 seconds at {wavelength}...")
-        # check if the configuration can be kept the same
-        assert low <= wavelength <= high
-        if USELASER:
-            opo.system_tune(wavelength, SYSTEM)
-            keep_running = True
-            threading.Thread(target=_keep_alive, daemon=True).start()
-        time.sleep(waitingtime)   # wait some seconds before actually starting to collet data
-
-#.        if ii==0: input("check scope")
-        # here collect data from the oscilloscope
-        t, y = oscilloscope(ch =4, tdiv = aqtime/10, init = ii==0)
-        collection.append([QS_DELAY_US, wavelength,  ])
-
-        print(f"Average energy at {wavelength} n: {y.mean()}")
-
-
-collection = np.array(collection)
-## saving the results
-with open(f'{saveloc}energy_scan_QS{QS_DELAY_US}{notes}.pkl', 'wb') as fi:
-    pickle.dump(collection, fi)
+try:
+    collection = []
+    for ii, wavelength in enumerate( wavelengths ):
+            print(f"Running the system at {wavelength}...")
+            # check if the configuration can be kept the same
+            # assert low <= wavelength <= high
+            if USELASER:
+                opo.system_tune(wavelength, SYSTEM)
+                keep_running = True
+                threading.Thread(target=_keep_alive, daemon=True).start()
+            time.sleep(waitingtime)   # wait some seconds before actually starting to collet data
+            y1,y2,y4 = test_sequence(segments=segments, mdepth = mdepth, tdiv=tdiv, init=ii==0)
+            data = [time.time(), QS_DELAY_US, tdiv, segments, mdepth, wavelength,y1,y2,y4]
+            collection.append(data)
+# finally:
+            if not(saveCollection):
+                try:
+                    ## saving the results
+                    filename = f'{saveloc}{wavelength}_wavelength_scan_{notes}_{time.time()}.pkl'
+                    print(f'Saving data on file {filename}')
+                    with open(filename, 'wb') as fi:
+                        pickle.dump(data, fi)
+                except:
+                    print('Saving failed')
+except:
+    print('Acquisition failed :( ')
+finally:
+    if saveCollection:
+        ## saving the results
+        filename = f'{saveloc}wavelength_scan_{notes}_{time.time()}.pkl'
+        print(f'Saving data on file {filename}')
+        with open(filename, 'wb') as fi:
+            pickle.dump(data, fi)
 
 
 if USELASER:
@@ -185,16 +202,3 @@ if USELASER:
     opo.system_close(SYSTEM)
 
 
-## plot the reuslts
-if True:
-    fig, ax= plt.subplots()
-    ax.plot(collection[:,1], collection[:,2] / EMCorrFac / LaserFreq, 'sr', label=f'Energy');
-    ax.set_xlabel("Wavelength [nm]")
-    ax.set_ylabel("Average pulse energy [J]")
-    ax.set_title(f"Average pulse energy vs wavelength\nat QS delay: {QS_DELAY_US} us")
-    plt.legend(frameon=False); 
-    ax.grid()
-    plt.draw();plt.pause(.001)
-    plt.savefig( f'{saveloc}energy_scan_QS{QS_DELAY_US}{notes}.png')
-    
-    
